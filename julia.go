@@ -85,7 +85,13 @@ func main() {
 
 		c := complex(cre, cim)
 		ymax := scale
-		xmax := scale * float64(width) / float64(height)
+		xmax := scale
+		if width >= height {
+			xmax *= float64(width) / float64(height)
+		} else {
+			ymax *= float64(height) / float64(width)
+		}
+
 		distMax := (xmax * 2) / float64(width)
 
 		coloring := r.FormValue("coloring")
@@ -159,7 +165,7 @@ func (s *JuliaSet) run(w io.Writer) {
 
 	for cpu := 0; cpu < cpus; cpu++ {
 		go func(n int) {
-			for py := 0; py < s.width; py++ {
+			for py := 0; py < s.height; py++ {
 				im := s.ymax*2.0*float64(py)/float64(s.height) - s.ymax
 				for px := n * slice; px < (n+1)*slice; px++ {
 					re := s.xmax*2.0*float64(px)/float64(s.width) - s.xmax
@@ -340,6 +346,7 @@ var index = `<!doctype html>
 				</td>
 			</tr>
 		</table>
+		<button type=button id=random-colors>Randomize color palette</button>
 		<hr>
 		<div>
 			<span><i>c</i> = <input name=re type=number value=0 step=0.01> +
@@ -365,8 +372,8 @@ var index = `<!doctype html>
 			<input name=palette type=radio value=color checked>color
 			<input name=palette type=radio value=gray>gray
 		</div>
-		<button id=submit name=submit type=button>render</button>
-		<button id=random type=button>pick a random c</button>
+		<button id=submit name=submit type=button>Render</button>
+		<button id=random type=button>Pick a random <i>c</i></button>
 	</form>
 	<script>
 		var vars = {
@@ -375,14 +382,18 @@ var index = `<!doctype html>
 			"i": -20, "j": 9, "k": -20, "l": 19,
 			//"re": Math.random()*2-1,
 			//"im": Math.random()*2-1,
-			"re": -0.75,
-			"im": 0.14,
+			"re": 0.285,
+			"im": 0.01,
 			"scale": 0, "width": 512, "height": 512,
 			"iterations": 255
 		};
 
 		var fractal, palette, inputs;
-		var submit, random;
+		var submit, random, randomColors;
+
+		function setVar(key, val) {
+			document.querySelector('[name=' + key + ']').value = vars[key] = val;
+		}
 
 		function radioValue(s) {
 			var inputs = document.getElementsByName(s);
@@ -399,7 +410,7 @@ var index = `<!doctype html>
 			}
 			if (stickButtons) {
 				submit.setAttribute('disabled');
-				submit.innerText = "rendering...";
+				submit.innerText = "Rendering...";
 				random.setAttribute('disabled');
 			}
 		}
@@ -409,7 +420,7 @@ var index = `<!doctype html>
 				input.removeAttribute('disabled');
 			}
 			submit.removeAttribute('disabled');
-			submit.innerText = "render";
+			submit.innerText = "Render";
 			random.removeAttribute("disabled");
 		}
 
@@ -464,6 +475,7 @@ var index = `<!doctype html>
 			inputs = document.querySelectorAll('input');
 			submit = document.querySelector('#submit');
 			random = document.querySelector("#random");
+			randomColors = document.querySelector('#random-colors');
 
 			for (var i = 0, input; input = inputs[i]; i++) {
 				input.addEventListener("input", function(e) {
@@ -487,8 +499,27 @@ var index = `<!doctype html>
 			updatePalette();
 			submit.addEventListener("click", updateFractal);
 			random.addEventListener("click", function() {
-				document.querySelector('[name=re]').value = vars['re'] = Math.random()*2-1;
-				document.querySelector('[name=im]').value = vars['im'] = Math.random()*2-1;
+				setVar('re', Math.random()*2 - 1);
+				setVar('im', Math.random()*2 - 1);
+				updateFractal();
+			});
+			randomColors.addEventListener('click', function() {
+				var b = Math.floor(Math.random()*15);
+				var f = Math.floor(Math.random()*15);
+				var j = Math.floor(Math.random()*15);
+				setVar('a', Math.floor(-Math.random()*10 - 15));
+				setVar('b', b);
+				setVar('c', Math.floor(-Math.random()*10 - 15));
+				setVar('d', b + Math.ceil(Math.random()*15));
+				setVar('e', Math.floor(-Math.random()*10 - 15));
+				setVar('f', f);
+				setVar('g', Math.floor(-Math.random()*10 - 15));
+				setVar('h', f + Math.ceil(Math.random()*15));
+				setVar('i', Math.floor(-Math.random()*10 - 15));
+				setVar('j', j);
+				setVar('k', Math.floor(-Math.random()*10 - 15));
+				setVar('l', j + Math.ceil(Math.random()*15));
+				updatePalette();
 				updateFractal();
 			});
 		});
