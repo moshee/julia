@@ -29,14 +29,14 @@ func main() {
 		fmt.Fprint(w, index)
 	})
 
-	http.HandleFunc("/palette", func(w http.ResponseWriter, r *http.Request) {
+	http.HandleFunc("/palette.png", func(w http.ResponseWriter, r *http.Request) {
 		const (
 			W = 512
 			H = 128
 		)
 		img := image.NewRGBA(image.Rect(0, 0, W, H))
 		args := make(map[rune]float64)
-		letters := "abcdefghi"
+		letters := "abcdefghijkl"
 		for i, ch := range letters {
 			val := r.FormValue(letters[i : i+1])
 			args[ch], _ = strconv.ParseFloat(val, 64)
@@ -68,9 +68,9 @@ func main() {
 		png.Encode(w, img)
 	})
 
-	http.HandleFunc("/julia", func(w http.ResponseWriter, r *http.Request) {
+	http.HandleFunc("/julia.png", func(w http.ResponseWriter, r *http.Request) {
 		args := make(map[rune]float64)
-		letters := "abcdefghi"
+		letters := "abcdefghijkl"
 		for i, ch := range letters {
 			val := r.FormValue(letters[i : i+1])
 			args[ch], _ = strconv.ParseFloat(val, 64)
@@ -127,16 +127,24 @@ func cheat(r *http.Request, s string) float64 {
 
 func f(z, c complex128) complex128 {
 	return z*z + c
+	//return cmplx.Sinh(z*z) + cmplx.Exp(z) + c
+	//return (z*z-z)/(2*cmplx.Log(z)) + c
+	//return z*z*z + c
+	//return 1/(z*z) + c
 }
-func fp(z complex128) complex128 {
+func fp(z, c complex128) complex128 {
 	return 2 * z
+	//return 2*z*cmplx.Cosh(z*z) + cmplx.Exp(z)
+	//return ((2*z-1)*(2*cmplx.Log(z)-1) - 2*z + 2) / cmplx.Pow(2*cmplx.Log(z), 2+0i)
+	//return 3 * z * z
+	//return 2 / (z * z * z)
 }
 
 type JuliaSet struct {
 	c                   complex128
 	xmax, ymax, distMax float64
 	width, height       int
-	coloringFunc        func(*JuliaSet, complex128) color.Color
+	coloringFunc        func(*JuliaSet, complex128) float64
 	paletteFunc         func(*JuliaSet, float64) color.Color
 	args                map[rune]float64
 	maxIters            int
@@ -156,7 +164,7 @@ func (s *JuliaSet) run(w io.Writer) {
 				for px := n * slice; px < (n+1)*slice; px++ {
 					re := s.xmax*2.0*float64(px)/float64(s.width) - s.xmax
 
-					pixel := s.coloringFunc(s, complex(re, im))
+					pixel := s.paletteFunc(s, s.coloringFunc(s, complex(re, im)))
 
 					img.Set(px, py, pixel)
 				}
@@ -178,14 +186,14 @@ func escape(z complex128) bool {
 	return (x*x + y*y) > 4.0
 }
 
-func (s *JuliaSet) distance(z complex128) color.Color {
-	zp := complex(1.0, 0.0) // z' = f'(z_n)
-	zn := z                 // next z_n value
+func (s *JuliaSet) distance(z complex128) float64 {
+	zp := 1 + 0i // z' = f'(z_n)
+	zn := z      // next z_n value
 
 derivative:
 	for j := 0; j < s.maxIters; j++ {
 		zn = f(z, s.c)
-		zp *= fp(z)
+		zp *= fp(z, s.c)
 		z = zn
 		if cmplx.Abs(zp) > 1.0e60 {
 			break derivative
@@ -194,11 +202,11 @@ derivative:
 
 	za := cmplx.Abs(z)
 	dist := za * (math.Log(za) / cmplx.Abs(zp))
-	p := 1 - math.Exp(-4*dist/(s.distMax))
-	return s.paletteFunc(s, p)
+	//p := math.Exp(-dist / (s.distMax))
+	return -1/(3*(dist/s.distMax)+1) + 1
 }
 
-func (s *JuliaSet) escapeTime(z complex128) color.Color {
+func (s *JuliaSet) escapeTime(z complex128) float64 {
 	i := 0
 	for i < s.maxIters {
 		z = f(z, s.c)
@@ -210,7 +218,7 @@ func (s *JuliaSet) escapeTime(z complex128) color.Color {
 
 	p := 1 - float64(i)/float64(s.maxIters)
 
-	return s.paletteFunc(s, p)
+	return p
 }
 
 func (s *JuliaSet) gray(x float64) color.Color {
@@ -227,64 +235,112 @@ func (s *JuliaSet) palette(x float64) color.Color {
 }
 
 func R(args map[rune]float64, x float64) float64 {
-	return 1 - (1 / (1 + math.Exp(args['a']*x+args['b'])))
+	return (1 / (1 + math.Exp(args['a']*x+args['b']))) - (1 / (1 + math.Exp(args['c']*x+args['d'])))
 }
 
 func G(args map[rune]float64, x float64) float64 {
-	return (1 / (1 + math.Exp(args['c']*x+args['d']))) - (1 / (1 + math.Exp(args['e']*x+args['f'])))
+	return (1 / (1 + math.Exp(args['e']*x+args['f']))) - (1 / (1 + math.Exp(args['g']*x+args['h'])))
 }
 
 func B(args map[rune]float64, x float64) float64 {
-	return 1 / (args['g'] + math.Exp(args['h']*x+args['i']))
+	return (1 / (1 + math.Exp(args['i']*x+args['j']))) - (1 / (1 + math.Exp(args['k']*x+args['l'])))
 }
 
 var index = `<!doctype html>
 <head>
-	<title>lol</title>
+	<title>Julia Set</title>
 	<style>
-		input[type=number] { width: 5em }
+		input[type=number] {
+			width: 5em;
+			border: none;
+			border-bottom: 1px dashed #888;
+			font-size: 18px;
+			font-family: serif;
+		}
+		input[type=number]:focus {
+			outline: 0;
+			border-color: #444;
+			background: #fafafa;
+		}
+		table input[type=number] {
+			width: 3em;
+		}
 		img { display: block }
 		form, #images {
 			display: inline-block;
 			vertical-align: top;
 			padding: 32px;
 		}
+		.eqn {
+			text-align: center;
+			font-size: 24px;
+		}
 	</style>
 </head>
 <body>
 	<div id=images>
 		<img id=fractal>
-		<img id=palette>
 	</div>
 	<form>
-		<p>R = 1 - (1 / (1 + <i>e</i><sup><i><b>a</b>x</i> + <i><b>b</b></i></sup>))</p>
-		<p>G = (1 / (1 + <i>e</i><sup><i><b>c</b>x</i> + <i><b>d</b></i></sup>)) - (1 / (1 + <i>e</i><sup><i><b>e</b>x</i> + <i><b>f</b></i></sup>))</p>
-		<p>B = 1 - (1 / (<i><b>g</b></i> + <i>e</i><sup><i><b>h</b>x</i> + <i><b>i</b></i></sup>))</p>
-		<p>ƒ<sub>c</sub>(<i>z</i>) = <i>z</i><sup>2</sup> + <i>c</i></p>
-		<div>
-			<label for=a><i>a =</i></label>
-			<input name=a type=number value=0 step=1>
-			<label for=b><i>b =</i></label>
-			<input name=b type=number value=8 step=1>
-		</div>
-		<div>
-			<label for=c><i>c =</i></label>
-			<input name=c type=number value=0 step=1>
-			<label for=d><i>d =</i></label>
-			<input name=d type=number value=0 step=1>
-			<label for=e><i>e =</i></label>
-			<input name=e type=number value=0 step=1>
-			<label for=f><i>f =</i></label>
-			<input name=f type=number value=0 step=1>
-		</div>
-		<div>
-			<label for=g><i>g =</i></label>
-			<input name=g type=number value=0 step=1>
-			<label for=h><i>h =</i></label>
-			<input name=h type=number value=0 step=1>
-			<label for=i><i>i =</i></label>
-			<input name=i type=number value=0 step=1>
-		</div>
+		<p class=eqn>ƒ<sub>c</sub>(<i>z</i>) = <i>z</i><sup>2</sup> + <i>c</i></p>
+		<img id=palette>
+		<table>
+			<tr>
+				<td>
+					<label for=a><i>a =</i></label>
+					<input name=a type=number step=1>
+				</td>
+				<td>
+					<label for=b><i>b =</i></label>
+					<input name=b type=number step=1>
+				</td>
+				<td>
+					<label for=c><i>c =</i></label>
+					<input name=c type=number step=1>
+				</td>
+				<td>
+					<label for=d><i>d =</i></label>
+					<input name=d type=number step=1>
+				</td>
+			</tr>
+			<tr>
+				<td>
+					<label for=e><i>e =</i></label>
+					<input name=e type=number step=1>
+				</td>
+				<td>
+					<label for=f><i>f =</i></label>
+					<input name=f type=number step=1>
+				</td>
+				<td>
+					<label for=g><i>g =</i></label>
+					<input name=g type=number step=1>
+				</td>
+				<td>
+					<label for=h><i>h =</i></label>
+					<input name=h type=number step=1>
+				</td>
+			</tr>
+			<tr>
+				<td>
+					<label for=i><i>i =</i></label>
+					<input name=i type=number value=0 step=1>
+				</td>
+				<td>
+					<label for=j><i>j =</i></label>
+					<input name=j type=number value=0 step=1>
+				</td>
+				<td>
+					<label for=k><i>k =</i></label>
+					<input name=k type=number value=0 step=1>
+				</td>
+				<td>
+					<label for=l><i>l =</i></label>
+					<input name=l type=number value=0 step=1>
+				</td>
+			</tr>
+		</table>
+		<hr>
 		<div>
 			<span><i>c</i> = <input name=re type=number value=0 step=0.01> +
 			<input name=im type=number value=0 step=0.01><i>i</i>
@@ -309,23 +365,24 @@ var index = `<!doctype html>
 			<input name=palette type=radio value=color checked>color
 			<input name=palette type=radio value=gray>gray
 		</div>
-		<button id=submit type=button>render</button>
+		<button id=submit name=submit type=button>render</button>
 		<button id=random type=button>pick a random c</button>
 	</form>
 	<script>
 		var vars = {
-			"a": -30, "b":  10,
-			"c": -30, "d":   3, "e": -20, "f": 12,
-			"g":   2, "h": -20, "i":  13,
-			"re": Math.random()*2-1,
-			"im": Math.random()*2-1,
+			"a": -20, "b": 1, "c": -20, "d": 11,
+			"e": -20, "f": 5, "g": -20, "h": 15,
+			"i": -20, "j": 9, "k": -20, "l": 19,
+			//"re": Math.random()*2-1,
+			//"im": Math.random()*2-1,
+			"re": -0.75,
+			"im": 0.14,
 			"scale": 0, "width": 512, "height": 512,
 			"iterations": 255
 		};
 
-		var colorsDirty = true;
 		var fractal, palette, inputs;
-		var submit;
+		var submit, random;
 
 		function radioValue(s) {
 			var inputs = document.getElementsByName(s);
@@ -336,15 +393,42 @@ var index = `<!doctype html>
 			}
 		}
 
+		function stick(stickButtons) {
+			for (var i = 0, input; input = inputs[i]; i++) {
+				input.setAttribute('disabled');
+			}
+			if (stickButtons) {
+				submit.setAttribute('disabled');
+				submit.innerText = "rendering...";
+				random.setAttribute('disabled');
+			}
+		}
+
 		function unstick() {
 			for (var i = 0, input; input = inputs[i]; i++) {
 				input.removeAttribute('disabled');
 			}
 			submit.removeAttribute('disabled');
 			submit.innerText = "render";
+			random.removeAttribute("disabled");
 		}
 
-		function updateImage() {
+		function updatePalette() {
+			var q = [];
+			"abcdefghijkl".split("").forEach(function(key) {
+				q.push(key + "=" + vars[key]);
+			})
+			var args = q.join("&");
+
+			stick(false);
+			palette.addEventListener("load", function() {
+				unstick();
+				palette.removeEventListener("load");
+			});
+			palette.setAttribute("src", "/palette.png?" + args);
+		}
+
+		function updateFractal(e) {
 			var q = [];
 			for (var key in vars) {
 				q.push(key + "=" + vars[key]);
@@ -353,16 +437,21 @@ var index = `<!doctype html>
 			q.push('coloring=' + radioValue('coloring'));
 			var args = q.join("&");
 
-			submit.setAttribute('disabled');
-			submit.innerText = "rendering...";
-
-			fractal.setAttribute("src", "/julia?" + args);
-			fractal.removeEventListener("load");
-			fractal.addEventListener("load", unstick);
-			if (colorsDirty) {
-				colorsDirty = false;
-				palette.setAttribute("src", "/palette?" + args);
+			stick(true);
+			var se;
+			if (e != null && e.target.selectionEnd) {
+				se = e.target.selectionEnd;
 			}
+
+			fractal.addEventListener("load", function() {
+				unstick();
+				if (e != null && e.target.setSelectionRange) {
+					e.target.focus();
+					e.target.setSelectionRange(se, se);
+				}
+				fractal.removeEventListener("load");
+			});
+			fractal.setAttribute("src", "/julia.png?" + args);
 		}
 
 		window.addEventListener("DOMContentLoaded", function() {
@@ -374,29 +463,33 @@ var index = `<!doctype html>
 			palette = document.querySelector('#palette');
 			inputs = document.querySelectorAll('input');
 			submit = document.querySelector('#submit');
+			random = document.querySelector("#random");
 
 			for (var i = 0, input; input = inputs[i]; i++) {
 				input.addEventListener("input", function(e) {
 					var name = e.target.getAttribute("name");
 					vars[name] = e.target.value;
 					// the colors all have 1 length names
-					if (name.length == 1) {
-						colorsDirty = true;
+					if (name.length === 1) {
+						updatePalette();
+						if (radioValue("palette") === "gray") {
+							return;
+						}
 					}
 					// update immediately unless it's something potentially very expensive
-					if (name != "width" && name != "height" && name != "iterations") {
-						e.target.setAttribute('disabled');
-						updateImage();
+					if (name !== "width" && name !== "height" && name !== "iterations") {
+						updateFractal(e);
 					}
 				});
 			}
 
-			updateImage();
-			submit.addEventListener("click", updateImage);
-			document.querySelector("#random").addEventListener("click", function() {
+			updateFractal();
+			updatePalette();
+			submit.addEventListener("click", updateFractal);
+			random.addEventListener("click", function() {
 				document.querySelector('[name=re]').value = vars['re'] = Math.random()*2-1;
 				document.querySelector('[name=im]').value = vars['im'] = Math.random()*2-1;
-				updateImage();
+				updateFractal();
 			});
 		});
 	</script>
