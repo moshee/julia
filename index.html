@@ -159,8 +159,21 @@
           <label for=gray>Grayscale</label>
         </li>
       </ul>
-      <button type=button id=random-colors>Randomize color palette</button>
+      <button type=button id=random-colors>Randomize colors</button>
 		</div>
+    <div class="radio knobs">
+      <h4>Format</h4>
+      <ul>
+        <li>
+          <input name=format type=radio id=png value=png>
+          <label for=png>PNG (bigger)</label>
+        </li>
+        <li>
+          <input name=format type=radio id=jpeg value=jpeg checked>
+          <label for=jpeg>JPEG (smaller)</label>
+        </li>
+      </ul>
+    </div>
 		<img id=palette>
 		<table class="knobs" id="palette-editor">
 			<tr>
@@ -232,12 +245,12 @@
 		function stick(stickButtons) {
       stuck = true;
 			for (var i = 0, input; input = inputs[i]; i++) {
-				input.setAttribute('disabled');
+				input.setAttribute('disabled', true);
 			}
 			if (stickButtons) {
-				submit.setAttribute('disabled');
+				submit.setAttribute('disabled', true);
 				submit.innerText = "Rendering...";
-				random.setAttribute('disabled');
+				random.setAttribute('disabled', true);
 			}
 		}
 
@@ -294,7 +307,22 @@
 				}
 				fractal.removeEventListener("load");
 			});
-			fractal.setAttribute("src", "/julia.png?" + args);
+
+      var endpoint;
+      var format = radioValue("format");
+      switch (format) {
+      case "png":
+        endpoint = "/julia.png";
+        break;
+      case "jpeg":
+        endpoint = "/julia.jpg";
+        break;
+      default:
+        alert("Invalid format: " + format);
+        return;
+      }
+
+			fractal.setAttribute("src", endpoint + "?" + args);
 		}
 
 		window.addEventListener("DOMContentLoaded", function() {

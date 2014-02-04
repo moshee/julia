@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"image"
 	"image/color"
+	"image/jpeg"
 	"image/png"
-	"io"
 	"io/ioutil"
 	"math"
 	"math/cmplx"
@@ -75,73 +75,88 @@ func main() {
 	})
 
 	http.HandleFunc("/julia.png", func(w http.ResponseWriter, r *http.Request) {
-		args := make(map[rune]float64)
-		letters := "abcdefghijkl"
-		for i, ch := range letters {
-			val := r.FormValue(letters[i : i+1])
-			args[ch], _ = strconv.ParseFloat(val, 64)
+		img := makeJulia(r)
+		if err := png.Encode(w, img); err != nil {
+			fmt.Printf("Error encoding png: %v\n", err)
 		}
-
-		var (
-			cre, _      = strconv.ParseFloat(r.FormValue("re"), 64)
-			cim, _      = strconv.ParseFloat(r.FormValue("im"), 64)
-			scale, _    = strconv.ParseFloat(r.FormValue("scale"), 64)
-			width, _    = strconv.Atoi(r.FormValue("width"))
-			height, _   = strconv.Atoi(r.FormValue("height"))
-			maxIters, _ = strconv.Atoi(r.FormValue("iterations"))
-			center, _   = strconv.ParseBool(r.FormValue("center"))
-			rePos, _    = strconv.ParseFloat(r.FormValue("re-pos"), 64)
-			imPos, _    = strconv.ParseFloat(r.FormValue("im-pos"), 64)
-		)
-		scale = math.Exp2(-scale / 2)
-		if center {
-			rePos = cre
-			imPos = cim
-		}
-
-		c := complex(cre, cim)
-		ymax := scale
-		xmax := scale
-		if width >= height {
-			xmax *= float64(width) / float64(height)
-		} else {
-			ymax *= float64(height) / float64(width)
-		}
-
-		distMax := (xmax * 2) / float64(width)
-
-		coloring := r.FormValue("coloring")
-		coloringFunc := (*JuliaSet).distance
-		switch coloring {
-		case "distance":
-			coloringFunc = (*JuliaSet).distance
-		case "escape":
-			coloringFunc = (*JuliaSet).escapeTime
-		}
-
-		paletteType := r.FormValue("palette")
-		paletteFunc := (*JuliaSet).gray
-		switch paletteType {
-		case "gray":
-			paletteFunc = (*JuliaSet).gray
-		case "color":
-			paletteFunc = (*JuliaSet).palette
-		}
-
-		s := &JuliaSet{
-			c,
-			xmax, ymax, distMax,
-			width, height,
-			coloringFunc,
-			paletteFunc,
-			args,
-			maxIters,
-			rePos, imPos,
-		}
-		s.run(w)
 	})
+
+	http.HandleFunc("/julia.jpg", func(w http.ResponseWriter, r *http.Request) {
+		img := makeJulia(r)
+		if err := jpeg.Encode(w, img, &jpeg.Options{Quality: 90}); err != nil {
+			fmt.Printf("Error encoding jpeg: %v\n", err)
+		}
+	})
+
 	fmt.Println("Listening on", *listen)
 	fmt.Println(http.ListenAndServe(*listen, nil))
+}
+
+func makeJulia(r *http.Request) image.Image {
+	args := make(map[rune]float64)
+	letters := "abcdefghijkl"
+	for i, ch := range letters {
+		val := r.FormValue(letters[i : i+1])
+		args[ch], _ = strconv.ParseFloat(val, 64)
+	}
+
+	var (
+		cre, _      = strconv.ParseFloat(r.FormValue("re"), 64)
+		cim, _      = strconv.ParseFloat(r.FormValue("im"), 64)
+		scale, _    = strconv.ParseFloat(r.FormValue("scale"), 64)
+		width, _    = strconv.Atoi(r.FormValue("width"))
+		height, _   = strconv.Atoi(r.FormValue("height"))
+		maxIters, _ = strconv.Atoi(r.FormValue("iterations"))
+		center, _   = strconv.ParseBool(r.FormValue("center"))
+		rePos, _    = strconv.ParseFloat(r.FormValue("re-pos"), 64)
+		imPos, _    = strconv.ParseFloat(r.FormValue("im-pos"), 64)
+	)
+	scale = math.Exp2(-scale / 2)
+	if center {
+		rePos = cre
+		imPos = cim
+	}
+
+	c := complex(cre, cim)
+	ymax := scale
+	xmax := scale
+	if width >= height {
+		xmax *= float64(width) / float64(height)
+	} else {
+		ymax *= float64(height) / float64(width)
+	}
+
+	distMax := (xmax * 2) / float64(width)
+
+	coloring := r.FormValue("coloring")
+	coloringFunc := (*JuliaSet).distance
+	switch coloring {
+	case "distance":
+		coloringFunc = (*JuliaSet).distance
+	case "escape":
+		coloringFunc = (*JuliaSet).escapeTime
+	}
+
+	paletteType := r.FormValue("palette")
+	paletteFunc := (*JuliaSet).gray
+	switch paletteType {
+	case "gray":
+		paletteFunc = (*JuliaSet).gray
+	case "color":
+		paletteFunc = (*JuliaSet).palette
+	}
+
+	s := &JuliaSet{
+		c,
+		xmax, ymax, distMax,
+		width, height,
+		coloringFunc,
+		paletteFunc,
+		args,
+		maxIters,
+		rePos, imPos,
+	}
+	return s.run()
 }
 
 func f(z, c complex128) complex128 {
@@ -171,7 +186,7 @@ type JuliaSet struct {
 	rePos, imPos  float64
 }
 
-func (s *JuliaSet) run(w io.Writer) {
+func (s *JuliaSet) run() image.Image {
 	img := image.NewRGBA(image.Rect(0, 0, s.width, s.height))
 
 	wg := new(sync.WaitGroup)
@@ -196,9 +211,7 @@ func (s *JuliaSet) run(w io.Writer) {
 
 	wg.Wait()
 
-	if err := png.Encode(w, img); err != nil {
-		fmt.Printf("Error encoding PNG: %v\n", err)
-	}
+	return img
 }
 
 func escape(z complex128) bool {
