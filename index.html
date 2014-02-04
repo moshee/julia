@@ -22,6 +22,7 @@
     }
 		button {
 			padding: 4px 8px;
+      margin-left: 8px;
 			font-size: 14px;
       -webkit-appearance: none;
       font-family: sans-serif;
@@ -40,6 +41,11 @@
     button:disabled, input:disabled {
       opacity: 0.6;
     }
+    button#submit {
+      background: #4a2;
+      color: #fff;
+      text-transform: uppercase;
+    }
 		input[type=number] {
 			width: 5em;
 			border: none;
@@ -55,6 +61,9 @@
 			border-color: #444;
 			background: #fafafa;
 		}
+    input[type=checkbox] {
+      vertical-align: middle;
+    }
     table {
       width: 100%;
     }
@@ -89,6 +98,9 @@
 		#parameter, #parameter input[type=number] {
 			font-size: 20px;
 		}
+    #parameter input[type=number] {
+      width: 7em;
+    }
     .knobs {
       padding: 8px;
       margin: 8px 0;
@@ -107,31 +119,33 @@
 		<div id=parameter class="knobs">
 			<span><i>c</i> = <input name=re type=number value=0 step=0.01> +
 			<input name=im type=number value=0 step=0.01><i>i</i>
-			<button id=random type=button>Pick a random <i>c</i></button>
+      <button id=random type=button>Random <i>c</i></button>
 		</div>
 		<h3>Rendering options</h3>
 		<table id=rendering class="knobs">
 			<tr>
         <td><label for=width>Width (px):</label></td>
         <td><input name=width type=number step=10></td>
-        <td><label for=scale>Scale:</label></td>
-        <td><input name=scale type=number step=1></td>
-			</tr>
-			<tr>
         <td><label for=height>Height (px):</label></td>
         <td><input name=height type=number step=10></td>
+			</tr>
+			<tr>
+        <td><label for=scale>Zoom:</label></td>
+        <td><input name=scale type=number step=1></td>
         <td><label for=iterations>Max. iterations:</label></td>
         <td><input name=iterations type=number step=10></td>
 			</tr>
-    </table>
-    <table class="knobs">
       <tr>
-        <td><input type="checkbox" name=center id=center></td>
-        <td><label for=center>Center image on <i>c</i></label></td>
         <td><label for="rePos">ℜ pos:</label></td>
         <td><input id="rePos" name="rePos" type="number" step="0.01"></td>
         <td><label for="imPos">ℑ pos:</label></td>
         <td><input id="imPos" name="imPos" type="number" step="0.01"></td>
+      </tr>
+      <tr>
+        <td><label for=center>Center image on <i>c</i></label></td>
+        <td><input type="checkbox" name=center id=center></td>
+        <td><button type="button" id="reset-to-origin">Reset to origin</button></td>
+        <td><button type="button" id="zoom0">Zoom 0</button></td>
       </tr>
     </table>
 		<div class="radio knobs">
@@ -159,7 +173,6 @@
           <label for=gray>Grayscale</label>
         </li>
       </ul>
-      <button type=button id=random-colors>Randomize colors</button>
 		</div>
     <div class="radio knobs">
       <h4>Format</h4>
@@ -209,6 +222,7 @@
 			</tr>
 		</table>
 		<button id=submit name=submit type=button>Render</button>
+    <button type=button id=random-colors>Random colors</button>
 	</form>
 	<div id=images>
 		<img id=fractal>
@@ -471,6 +485,19 @@
         setVar("rePos", +vars.rePos + xp * xDelta);
         setVar("imPos", +vars.imPos + yp * yDelta);
         center.checked = false;
+        delete rePos.dataset.leaveDisabled;
+        delete imPos.dataset.leaveDisabled;
+        updateFractal();
+      });
+      document.querySelector("#reset-to-origin").addEventListener("click", function() {
+        if (vars.rePos == 0 && vars.imPos == 0) return;
+        setVar("rePos", 0);
+        setVar("imPos", 0);
+        updateFractal();
+      });
+      document.querySelector("#zoom0").addEventListener("click", function() {
+        if (vars.scale == 0) return;
+        setVar("scale", 0);
         updateFractal();
       });
 		});
