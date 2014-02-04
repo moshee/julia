@@ -101,7 +101,7 @@
 	</style>
 </head>
 <body>
-	<form>
+	<form id="knob-panel">
 		<p class=eqn>ƒ<sub><i>c</i></sub>(<i>z</i>) = <i>z</i><sup>2</sup> + <i>c</i></p>
 		<h3>Function parameters</h3>
 		<div id=parameter class="knobs">
@@ -214,6 +214,7 @@
 		var fractal, palette, inputs;
 		var submit, random, randomColors;
     var center;
+    var stuck = false;
 
 		function setVar(key, val) {
 			document.querySelector('[name=' + key + ']').value = vars[key] = val;
@@ -229,6 +230,7 @@
 		}
 
 		function stick(stickButtons) {
+      stuck = true;
 			for (var i = 0, input; input = inputs[i]; i++) {
 				input.setAttribute('disabled');
 			}
@@ -248,6 +250,7 @@
 			submit.removeAttribute('disabled');
 			submit.innerText = "Render";
 			random.removeAttribute("disabled");
+      stuck = false;
 		}
 
 		function updatePalette() {
@@ -419,6 +422,12 @@
 				updatePalette();
 				updateFractal();
 			});
+      document.querySelector("#knob-panel").addEventListener("keydown", function(e) {
+        if (!stuck && e.keyCode == 13) { // enter
+          updatePalette();
+          updateFractal();
+        }
+      });
 		});
 	</script>
 </body>
