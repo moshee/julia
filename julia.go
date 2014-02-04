@@ -2,12 +2,12 @@ package main
 
 import (
 	"flag"
-	"fmt"
 	"image"
 	"image/color"
 	"image/jpeg"
 	"image/png"
 	"io/ioutil"
+	"log"
 	"math"
 	"math/cmplx"
 	"net/http"
@@ -77,19 +77,19 @@ func main() {
 	http.HandleFunc("/julia.png", func(w http.ResponseWriter, r *http.Request) {
 		img := makeJulia(r)
 		if err := png.Encode(w, img); err != nil {
-			fmt.Printf("Error encoding png: %v\n", err)
+			log.Printf("Error encoding png: %v", err)
 		}
 	})
 
 	http.HandleFunc("/julia.jpg", func(w http.ResponseWriter, r *http.Request) {
 		img := makeJulia(r)
 		if err := jpeg.Encode(w, img, &jpeg.Options{Quality: 90}); err != nil {
-			fmt.Printf("Error encoding jpeg: %v\n", err)
+			log.Printf("Error encoding jpeg: %v", err)
 		}
 	})
 
-	fmt.Println("Listening on", *listen)
-	fmt.Println(http.ListenAndServe(*listen, nil))
+	log.Println("Listening on", *listen)
+	log.Println(http.ListenAndServe(*listen, nil))
 }
 
 func makeJulia(r *http.Request) image.Image {
@@ -108,8 +108,8 @@ func makeJulia(r *http.Request) image.Image {
 		height, _   = strconv.Atoi(r.FormValue("height"))
 		maxIters, _ = strconv.Atoi(r.FormValue("iterations"))
 		center, _   = strconv.ParseBool(r.FormValue("center"))
-		rePos, _    = strconv.ParseFloat(r.FormValue("re-pos"), 64)
-		imPos, _    = strconv.ParseFloat(r.FormValue("im-pos"), 64)
+		rePos, _    = strconv.ParseFloat(r.FormValue("rePos"), 64)
+		imPos, _    = strconv.ParseFloat(r.FormValue("imPos"), 64)
 	)
 	scale = math.Exp2(-scale / 2)
 	if center {

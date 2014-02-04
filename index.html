@@ -128,10 +128,10 @@
       <tr>
         <td><input type="checkbox" name=center id=center></td>
         <td><label for=center>Center image on <i>c</i></label></td>
-        <td><label for="re-pos">ℜ pos:</label></td>
-        <td><input id="re-pos" name="re-pos" type="number" step="0.01"></td>
-        <td><label for="im-pos">ℑ pos:</label></td>
-        <td><input id="im-pos" name="im-pos" type="number" step="0.01"></td>
+        <td><label for="rePos">ℜ pos:</label></td>
+        <td><input id="rePos" name="rePos" type="number" step="0.01"></td>
+        <td><label for="imPos">ℑ pos:</label></td>
+        <td><input id="imPos" name="imPos" type="number" step="0.01"></td>
       </tr>
     </table>
 		<div class="radio knobs">
@@ -219,7 +219,7 @@
 			"e": -20, "f": 5, "g": -20, "h": 15,
 			"i": -20, "j": 9, "k": -20, "l": 19,
 			"re": -0.505, "im": 0.523,
-      "re-pos": 0, "im-pos": 0,
+      "rePos": 0, "imPos": 0,
 			"scale": 0, "width": 512, "height": 512,
       "iterations": 255
 		};
@@ -407,16 +407,16 @@
 			submit.addEventListener("click", updateFractal);
       center.addEventListener("click", updateFractal);
 
-      var rePos = document.querySelector("#re-pos");
-      var imPos = document.querySelector("#im-pos");
+      var rePos = document.querySelector("#rePos");
+      var imPos = document.querySelector("#imPos");
       center.addEventListener("click", function(e) {
         if (e.target.checked) {
           rePos.dataset.leaveDisabled = true;
           rePos.dataset.old = rePos.value;
-          rePos.value = vars["re"];
+          rePos.value = vars.re;
           imPos.dataset.leaveDisabled = true;
           imPos.dataset.old = imPos.value;
-          imPos.value = vars["im"];
+          imPos.value = vars.im;
         } else {
           rePos.removeAttribute("disabled");
           delete rePos.dataset.leaveDisabled;
@@ -455,6 +455,23 @@
           updatePalette();
           updateFractal();
         }
+      });
+      document.querySelector("#fractal").addEventListener("click", function(e) {
+        // find the relative % location of the click, where the exact middle is 0, 0
+        var xp =     2*e.offsetX / e.target.offsetWidth - 1;
+        var yp = 1 - 2*e.offsetY / e.target.offsetHeight;
+        var scale = Math.pow(2, -vars.scale / 2);
+        // find the width of the viewport in units
+        var xDelta = yDelta = scale;
+        if (vars.width >= vars.height) {
+          xDelta *= vars.width/vars.height;
+        } else {
+          yDelta *= vars.height/vars.width;
+        }
+        setVar("rePos", +vars.rePos + xp * xDelta);
+        setVar("imPos", +vars.imPos + yp * yDelta);
+        center.checked = false;
+        updateFractal();
       });
 		});
 	</script>
