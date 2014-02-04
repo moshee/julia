@@ -16,16 +16,19 @@ import (
 	"sync"
 )
 
-var cpus = runtime.NumCPU()
+var (
+	cpus    = runtime.NumCPU()
+	listen  = flag.String("listen", ":8080", "Port to listen on")
+	itercap = flag.Int("cap.iters", 0, "Cap max iterations to value (<= 0 for uncapped)")
+	rescap  = flag.Int("cap.res", 0, "Cap max width or height to value (<=0 for uncapped)")
+)
 
 func init() {
+	flag.Parse()
 	runtime.GOMAXPROCS(cpus)
 }
 
 func main() {
-	listen := flag.String("listen", ":8080", "Port to listen on")
-	flag.Parse()
-
 	index, err := ioutil.ReadFile("index.html")
 	if err != nil {
 		panic(err)
@@ -111,6 +114,17 @@ func makeJulia(r *http.Request) image.Image {
 		rePos, _    = strconv.ParseFloat(r.FormValue("rePos"), 64)
 		imPos, _    = strconv.ParseFloat(r.FormValue("imPos"), 64)
 	)
+	if *itercap > 0 && maxIters > *itercap {
+		maxIters = *itercap
+	}
+	if *rescap > 0 {
+		if width > *rescap {
+			width = *rescap
+		}
+		if height > *rescap {
+			height = *rescap
+		}
+	}
 	scale = math.Exp2(-scale / 2)
 	if center {
 		rePos = cre
