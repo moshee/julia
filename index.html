@@ -1,0 +1,424 @@
+<!doctype html>
+<head>
+	<title>Julia Set</title>
+	<style>
+		* {
+			padding: 0;
+			margin: 0;
+			box-sizing: border-box;
+		}
+    body {
+      font-family: arno pro;
+    }
+		h3, h4 {
+      font-family: sans-serif;
+      clear: both;
+		}
+    h3 {
+			margin: 1em 0 0.5em 0;
+    }
+    h4 {
+      margin-bottom: 0.5em;
+    }
+		button {
+			padding: 4px 8px;
+			font-size: 14px;
+      -webkit-appearance: none;
+      font-family: sans-serif;
+      color: #444;
+      background: #eee;
+      font-weight: bolder;
+      border: none;
+      float: right;
+		}
+    button:hover {
+      background: #ddd;
+    }
+    button:active {
+      background: #ccc;
+    }
+    button:disabled, input:disabled {
+      opacity: 0.6;
+    }
+		input[type=number] {
+			width: 5em;
+			border: none;
+			border-bottom: 1px dashed #888;
+			font-size: 18px;
+			font-family: arno pro, serif;
+      background: transparent;
+      height: 24px;
+      line-height: 24px;
+		}
+		input[type=number]:focus {
+			outline: 0;
+			border-color: #444;
+			background: #fafafa;
+		}
+    table {
+      width: 100%;
+    }
+    table td {
+      padding: 2px 4px;
+    }
+    table td label {
+      vertical-align: top;
+    }
+		#palette-editor input[type=number] {
+			width: 3em;
+		}
+    table tr td:nth-of-type(2n+1) {
+      text-align: right;
+    }
+		.radio {
+			display: inline-block;
+			vertical-align: top;
+			padding-right: 32px;
+		}
+		img { display: block }
+		form, #images {
+			display: inline-block;
+			vertical-align: top;
+			padding: 32px;
+		}
+		.eqn {
+			text-align: center;
+			font-size: 24px;
+			margin: 16px;
+		}
+		#parameter, #parameter input[type=number] {
+			font-size: 20px;
+		}
+    .knobs {
+      padding: 8px;
+      margin: 8px 0;
+      border: 1px solid #eee;
+      border-radius: 2px;
+    }
+    .knobs ul {
+      list-style-type: none;
+    }
+	</style>
+</head>
+<body>
+	<form>
+		<p class=eqn>ƒ<sub><i>c</i></sub>(<i>z</i>) = <i>z</i><sup>2</sup> + <i>c</i></p>
+		<h3>Function parameters</h3>
+		<div id=parameter class="knobs">
+			<span><i>c</i> = <input name=re type=number value=0 step=0.01> +
+			<input name=im type=number value=0 step=0.01><i>i</i>
+			<button id=random type=button>Pick a random <i>c</i></button>
+		</div>
+		<h3>Rendering options</h3>
+		<table id=rendering class="knobs">
+			<tr>
+        <td><label for=width>Width (px):</label></td>
+        <td><input name=width type=number step=10></td>
+        <td><label for=scale>Scale:</label></td>
+        <td><input name=scale type=number step=1></td>
+			</tr>
+			<tr>
+        <td><label for=height>Height (px):</label></td>
+        <td><input name=height type=number step=10></td>
+        <td><label for=iterations>Max. iterations:</label></td>
+        <td><input name=iterations type=number step=10></td>
+			</tr>
+    </table>
+    <table class="knobs">
+      <tr>
+        <td><input type="checkbox" name=center id=center></td>
+        <td><label for=center>Center image on <i>c</i></label></td>
+        <td><label for="re-pos">ℜ pos:</label></td>
+        <td><input id="re-pos" name="re-pos" type="number" step="0.01"></td>
+        <td><label for="im-pos">ℑ pos:</label></td>
+        <td><input id="im-pos" name="im-pos" type="number" step="0.01"></td>
+      </tr>
+    </table>
+		<div class="radio knobs">
+			<h4>Coloring function</h4>
+      <ul>
+        <li>
+          <input name=coloring type=radio id=escape value=escape checked>
+          <label for=escape>Escape time</label>
+        </li>
+        <li>
+          <input name=coloring type=radio id=distance value=distance>
+          <label for=distance>Distance estimation (slower)</label>
+        </li>
+      </ul>
+		</div>
+		<div class="radio knobs">
+			<h4>Color palette</h4>
+      <ul>
+        <li>
+          <input name=palette type=radio id=color value=color checked>
+          <label for=color>Color</label>
+        </li>
+        <li>
+          <input name=palette type=radio id=gray value=gray>
+          <label for=gray>Grayscale</label>
+        </li>
+      </ul>
+      <button type=button id=random-colors>Randomize color palette</button>
+		</div>
+		<img id=palette>
+		<table class="knobs" id="palette-editor">
+			<tr>
+          <td><label for=a><i>R</i><sub>rise</sub> =</label></td>
+					<td><input name=a type=number step=1></td>
+          <td><label for=b><i>R</i><sub>left</sub> =</label></td>
+					<td><input name=b type=number step=1></td>
+          <td><label for=c><i>R</i><sub>fall</sub> =</label></td>
+					<td><input name=c type=number step=1></td>
+          <td><label for=d><i>R</i><sub>right</sub> =</label></td>
+					<td><input name=d type=number step=1></td>
+			</tr>
+			<tr>
+          <td><label for=e><i>G</i><sub>rise</sub> =</label></td>
+					<td><input name=e type=number step=1></td>
+          <td><label for=f><i>G</i><sub>left</sub> =</label></td>
+					<td><input name=f type=number step=1></td>
+          <td><label for=g><i>G</i><sub>fall</sub> =</label></td>
+					<td><input name=g type=number step=1></td>
+          <td><label for=h><i>G</i><sub>right</sub> =</label></td>
+					<td><input name=h type=number step=1></td>
+				</td>
+			</tr>
+			<tr>
+          <td><label for=i><i>B</i><sub>rise</sub> =</label></td>
+					<td><input name=i type=number step=1></td>
+          <td><label for=j><i>B</i><sub>left</sub> =</label></td>
+					<td><input name=j type=number step=1></td>
+          <td><label for=k><i>B</i><sub>fall</sub> =</label></td>
+					<td><input name=k type=number step=1></td>
+          <td><label for=l><i>B</i><sub>right</sub> =</label></td>
+					<td><input name=l type=number step=1></td>
+			</tr>
+		</table>
+		<button id=submit name=submit type=button>Render</button>
+	</form>
+	<div id=images>
+		<img id=fractal>
+	</div>
+	<script>
+		var vars = {
+			"a": -20, "b": 1, "c": -20, "d": 11,
+			"e": -20, "f": 5, "g": -20, "h": 15,
+			"i": -20, "j": 9, "k": -20, "l": 19,
+			"re": -0.505, "im": 0.523,
+      "re-pos": 0, "im-pos": 0,
+			"scale": 0, "width": 512, "height": 512,
+      "iterations": 255
+		};
+
+		var fractal, palette, inputs;
+		var submit, random, randomColors;
+    var center;
+
+		function setVar(key, val) {
+			document.querySelector('[name=' + key + ']').value = vars[key] = val;
+		}
+
+		function radioValue(s) {
+			var inputs = document.getElementsByName(s);
+			for (var i = 0, input; input = inputs[i]; i++) {
+				if (input.checked) {
+					return input.value;
+				}
+			}
+		}
+
+		function stick(stickButtons) {
+			for (var i = 0, input; input = inputs[i]; i++) {
+				input.setAttribute('disabled');
+			}
+			if (stickButtons) {
+				submit.setAttribute('disabled');
+				submit.innerText = "Rendering...";
+				random.setAttribute('disabled');
+			}
+		}
+
+		function unstick() {
+			for (var i = 0, input; input = inputs[i]; i++) {
+        if (!input.dataset.leaveDisabled) {
+          input.removeAttribute('disabled');
+        }
+			}
+			submit.removeAttribute('disabled');
+			submit.innerText = "Render";
+			random.removeAttribute("disabled");
+		}
+
+		function updatePalette() {
+			var q = [];
+			"abcdefghijkl".split("").forEach(function(key) {
+				q.push(key + "=" + vars[key]);
+			})
+			var args = q.join("&");
+
+			stick(false);
+			palette.addEventListener("load", function() {
+				unstick();
+				palette.removeEventListener("load");
+			});
+			palette.setAttribute("src", "/palette.png?" + args);
+		}
+
+		function updateFractal(e) {
+			var q = [];
+			for (var key in vars) {
+				q.push(key + "=" + vars[key]);
+			}
+			q.push('palette=' + radioValue('palette'));
+			q.push('coloring=' + radioValue('coloring'));
+      q.push('center=' + center.checked);
+			var args = q.join("&");
+
+			stick(true);
+			var se;
+      try {
+				se = e.target.selectionEnd;
+      } catch (e) {
+        se = null;
+      }
+
+			fractal.addEventListener("load", function() {
+				unstick();
+				if (se != null && e.target.setSelectionRange) {
+					e.target.focus();
+					e.target.setSelectionRange(se, se);
+				}
+				fractal.removeEventListener("load");
+			});
+			fractal.setAttribute("src", "/julia.png?" + args);
+		}
+
+		window.addEventListener("DOMContentLoaded", function() {
+			for (var key in vars) {
+				document.querySelector("[name=" + key + "]").value = vars[key];
+			}
+
+			fractal      = document.querySelector('#fractal');
+			palette      = document.querySelector('#palette');
+			inputs       = document.querySelectorAll('input');
+			submit       = document.querySelector('#submit');
+			random       = document.querySelector("#random");
+			randomColors = document.querySelector('#random-colors');
+      center       = document.querySelector("#center");
+
+			for (var i = 0, input; input = inputs[i]; i++) {
+				input.addEventListener("input", function(e) {
+					var name = e.target.getAttribute("name");
+					vars[name] = e.target.value;
+					// the colors all have 1 length names
+					if (name.length === 1) {
+						updatePalette();
+						if (radioValue("palette") === "gray") {
+							return;
+						}
+					}
+					// update immediately unless it's something potentially very expensive
+					if (name !== "width" && name !== "height" && name !== "iterations") {
+						updateFractal(e);
+					}
+				});
+				input.addEventListener("keydown", function(e) {
+          if (e.target.hasAttribute("disabled")) {
+            return;
+          }
+					var delta = +e.target.getAttribute("step") || 0.01;
+
+					switch (e.keyCode) {
+					case 38: // up
+					case 40: // down
+						if (e.shiftKey) {
+							delta *= 10;
+						} else if (e.metaKey) {
+							delta /= 10;
+						}
+						break;
+					default:
+						return true;
+					}
+					e.preventDefault();
+
+          var deltaParts = delta.toString().split('.');
+          var deltaPrec = deltaParts.length >= 2 ? deltaParts[1].length : 0;
+
+					if (e.keyCode == 40) {
+						delta = -delta;
+					}
+
+          // round bad float values
+          /*
+          var oldParts = e.target.value.split('.');
+          var oldPrec = oldParts.length >= 2 ? oldParts[1].length : 0;
+
+          var parts = newValue.toString().split('.');
+          var prec = parts.length >= 2 ? parts[1].length : 0;
+
+          // check if the floating point precision added too many decimals
+          if (prec - oldPrec > deltaPrec) {
+            prec--;
+          }
+
+					e.target.value = +newValue.toFixed(prec);
+          */
+          var newValue = +e.target.value + delta;
+          e.target.value = +newValue.toFixed(deltaPrec);
+					e.target.dispatchEvent(new Event('input'));
+				}, true);
+			}
+
+			updateFractal();
+			updatePalette();
+			submit.addEventListener("click", updateFractal);
+      center.addEventListener("click", updateFractal);
+
+      var rePos = document.querySelector("#re-pos");
+      var imPos = document.querySelector("#im-pos");
+      center.addEventListener("click", function(e) {
+        if (e.target.checked) {
+          rePos.dataset.leaveDisabled = true;
+          rePos.dataset.old = rePos.value;
+          rePos.value = vars["re"];
+          imPos.dataset.leaveDisabled = true;
+          imPos.dataset.old = imPos.value;
+          imPos.value = vars["im"];
+        } else {
+          rePos.removeAttribute("disabled");
+          delete rePos.dataset.leaveDisabled;
+          rePos.value = rePos.dataset.old;
+          imPos.removeAttribute("disabled");
+          delete imPos.dataset.leaveDisabled;
+          imPos.value = imPos.dataset.old;
+        }
+      });
+			random.addEventListener("click", function() {
+				setVar('re', Math.random()*2 - 1);
+				setVar('im', Math.random()*2 - 1);
+				updateFractal();
+			});
+			randomColors.addEventListener('click', function() {
+				var b = Math.floor(Math.random()*15);
+				var f = Math.floor(Math.random()*15);
+				var j = Math.floor(Math.random()*15);
+				setVar('a', Math.floor(-Math.random()*10 - 15));
+				setVar('b', b);
+				setVar('c', Math.floor(-Math.random()*10 - 15));
+				setVar('d', b + Math.ceil(Math.random()*15));
+				setVar('e', Math.floor(-Math.random()*10 - 15));
+				setVar('f', f);
+				setVar('g', Math.floor(-Math.random()*10 - 15));
+				setVar('h', f + Math.ceil(Math.random()*15));
+				setVar('i', Math.floor(-Math.random()*10 - 15));
+				setVar('j', j);
+				setVar('k', Math.floor(-Math.random()*10 - 15));
+				setVar('l', j + Math.ceil(Math.random()*15));
+				updatePalette();
+				updateFractal();
+			});
+		});
+	</script>
+</body>

@@ -7,6 +7,7 @@ import (
 	"image/color"
 	"image/png"
 	"io"
+	"io/ioutil"
 	"math"
 	"math/cmplx"
 	"net/http"
@@ -25,14 +26,19 @@ func main() {
 	listen := flag.String("listen", ":8080", "Port to listen on")
 	flag.Parse()
 
+	index, err := ioutil.ReadFile("index.html")
+	if err != nil {
+		panic(err)
+	}
+
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		fmt.Fprint(w, index)
+		w.Write(index)
 	})
 
 	http.HandleFunc("/palette.png", func(w http.ResponseWriter, r *http.Request) {
 		const (
 			W = 512
-			H = 128
+			H = 64
 		)
 		img := image.NewRGBA(image.Rect(0, 0, W, H))
 		args := make(map[rune]float64)
@@ -76,12 +82,22 @@ func main() {
 			args[ch], _ = strconv.ParseFloat(val, 64)
 		}
 
-		cre := cheat(r, "re")
-		cim := cheat(r, "im")
-		scale := math.Exp2(-cheat(r, "scale") / 2)
-		width, _ := strconv.Atoi(r.FormValue("width"))
-		height, _ := strconv.Atoi(r.FormValue("height"))
-		maxIters, _ := strconv.Atoi(r.FormValue("iterations"))
+		var (
+			cre, _      = strconv.ParseFloat(r.FormValue("re"), 64)
+			cim, _      = strconv.ParseFloat(r.FormValue("im"), 64)
+			scale, _    = strconv.ParseFloat(r.FormValue("scale"), 64)
+			width, _    = strconv.Atoi(r.FormValue("width"))
+			height, _   = strconv.Atoi(r.FormValue("height"))
+			maxIters, _ = strconv.Atoi(r.FormValue("iterations"))
+			center, _   = strconv.ParseBool(r.FormValue("center"))
+			rePos, _    = strconv.ParseFloat(r.FormValue("re-pos"), 64)
+			imPos, _    = strconv.ParseFloat(r.FormValue("im-pos"), 64)
+		)
+		scale = math.Exp2(-scale / 2)
+		if center {
+			rePos = cre
+			imPos = cim
+		}
 
 		c := complex(cre, cim)
 		ymax := scale
@@ -120,15 +136,12 @@ func main() {
 			paletteFunc,
 			args,
 			maxIters,
+			rePos, imPos,
 		}
 		s.run(w)
 	})
+	fmt.Println("Listening on", *listen)
 	fmt.Println(http.ListenAndServe(*listen, nil))
-}
-
-func cheat(r *http.Request, s string) float64 {
-	n, _ := strconv.ParseFloat(r.FormValue(s), 64)
-	return n
 }
 
 func f(z, c complex128) complex128 {
@@ -147,13 +160,15 @@ func fp(z, c complex128) complex128 {
 }
 
 type JuliaSet struct {
-	c                   complex128
-	xmax, ymax, distMax float64
-	width, height       int
-	coloringFunc        func(*JuliaSet, complex128) float64
-	paletteFunc         func(*JuliaSet, float64) color.Color
-	args                map[rune]float64
-	maxIters            int
+	c             complex128
+	xmax, ymax    float64
+	distMax       float64
+	width, height int
+	coloringFunc  func(*JuliaSet, complex128) float64
+	paletteFunc   func(*JuliaSet, float64) color.Color
+	args          map[rune]float64
+	maxIters      int
+	rePos, imPos  float64
 }
 
 func (s *JuliaSet) run(w io.Writer) {
@@ -166,10 +181,10 @@ func (s *JuliaSet) run(w io.Writer) {
 	for cpu := 0; cpu < cpus; cpu++ {
 		go func(n int) {
 			for py := 0; py < s.height; py++ {
-				im := s.ymax*2.0*float64(py)/float64(s.height) - s.ymax
-				for px := n * slice; px < (n+1)*slice; px++ {
-					re := s.xmax*2.0*float64(px)/float64(s.width) - s.xmax
+				im := s.ymax*2.0*float64(py)/float64(s.height) - s.ymax - s.imPos
 
+				for px := n * slice; px < (n+1)*slice; px++ {
+					re := s.xmax*2.0*float64(px)/float64(s.width) - s.xmax + s.rePos
 					pixel := s.paletteFunc(s, s.coloringFunc(s, complex(re, im)))
 
 					img.Set(px, py, pixel)
@@ -182,7 +197,7 @@ func (s *JuliaSet) run(w io.Writer) {
 	wg.Wait()
 
 	if err := png.Encode(w, img); err != nil {
-		panic(err)
+		fmt.Printf("Error encoding PNG: %v\n", err)
 	}
 }
 
@@ -208,7 +223,6 @@ derivative:
 
 	za := cmplx.Abs(z)
 	dist := za * (math.Log(za) / cmplx.Abs(zp))
-	//p := math.Exp(-dist / (s.distMax))
 	return -1/(3*(dist/s.distMax)+1) + 1
 }
 
@@ -241,287 +255,16 @@ func (s *JuliaSet) palette(x float64) color.Color {
 }
 
 func R(args map[rune]float64, x float64) float64 {
-	return (1 / (1 + math.Exp(args['a']*x+args['b']))) - (1 / (1 + math.Exp(args['c']*x+args['d'])))
+	return (1 / (1 + math.Exp(args['a']*x+args['b']))) -
+		(1 / (1 + math.Exp(args['c']*x+args['d'])))
 }
 
 func G(args map[rune]float64, x float64) float64 {
-	return (1 / (1 + math.Exp(args['e']*x+args['f']))) - (1 / (1 + math.Exp(args['g']*x+args['h'])))
+	return (1 / (1 + math.Exp(args['e']*x+args['f']))) -
+		(1 / (1 + math.Exp(args['g']*x+args['h'])))
 }
 
 func B(args map[rune]float64, x float64) float64 {
-	return (1 / (1 + math.Exp(args['i']*x+args['j']))) - (1 / (1 + math.Exp(args['k']*x+args['l'])))
+	return (1 / (1 + math.Exp(args['i']*x+args['j']))) -
+		(1 / (1 + math.Exp(args['k']*x+args['l'])))
 }
-
-var index = `<!doctype html>
-<head>
-	<title>Julia Set</title>
-	<style>
-		input[type=number] {
-			width: 5em;
-			border: none;
-			border-bottom: 1px dashed #888;
-			font-size: 18px;
-			font-family: serif;
-		}
-		input[type=number]:focus {
-			outline: 0;
-			border-color: #444;
-			background: #fafafa;
-		}
-		table input[type=number] {
-			width: 3em;
-		}
-		img { display: block }
-		form, #images {
-			display: inline-block;
-			vertical-align: top;
-			padding: 32px;
-		}
-		.eqn {
-			text-align: center;
-			font-size: 24px;
-		}
-	</style>
-</head>
-<body>
-	<div id=images>
-		<img id=fractal>
-	</div>
-	<form>
-		<p class=eqn>ƒ<sub>c</sub>(<i>z</i>) = <i>z</i><sup>2</sup> + <i>c</i></p>
-		<img id=palette>
-		<table>
-			<tr>
-				<td>
-					<label for=a><i>a =</i></label>
-					<input name=a type=number step=1>
-				</td>
-				<td>
-					<label for=b><i>b =</i></label>
-					<input name=b type=number step=1>
-				</td>
-				<td>
-					<label for=c><i>c =</i></label>
-					<input name=c type=number step=1>
-				</td>
-				<td>
-					<label for=d><i>d =</i></label>
-					<input name=d type=number step=1>
-				</td>
-			</tr>
-			<tr>
-				<td>
-					<label for=e><i>e =</i></label>
-					<input name=e type=number step=1>
-				</td>
-				<td>
-					<label for=f><i>f =</i></label>
-					<input name=f type=number step=1>
-				</td>
-				<td>
-					<label for=g><i>g =</i></label>
-					<input name=g type=number step=1>
-				</td>
-				<td>
-					<label for=h><i>h =</i></label>
-					<input name=h type=number step=1>
-				</td>
-			</tr>
-			<tr>
-				<td>
-					<label for=i><i>i =</i></label>
-					<input name=i type=number value=0 step=1>
-				</td>
-				<td>
-					<label for=j><i>j =</i></label>
-					<input name=j type=number value=0 step=1>
-				</td>
-				<td>
-					<label for=k><i>k =</i></label>
-					<input name=k type=number value=0 step=1>
-				</td>
-				<td>
-					<label for=l><i>l =</i></label>
-					<input name=l type=number value=0 step=1>
-				</td>
-			</tr>
-		</table>
-		<button type=button id=random-colors>Randomize color palette</button>
-		<hr>
-		<div>
-			<span><i>c</i> = <input name=re type=number value=0 step=0.01> +
-			<input name=im type=number value=0 step=0.01><i>i</i>
-			(scale = <input name=scale type=number step=1>)
-		</div>
-		<hr>
-		<div>
-			<label for=width>width =</label>
-			<input name=width type=number>
-			<label for=height>height =</label>
-			<input name=height type=number>
-			<label for=iterations>iterations =</label>
-			<input name=iterations type=number>
-		</div>
-		<div class=radio>
-			<label for=coloring>Coloring function:</label>
-			<input name=coloring type=radio value=escape checked>escape time
-			<input name=coloring type=radio value=distance>distance
-		</div>
-		<div class=radio>
-			<label for=palette>Palette:</label>
-			<input name=palette type=radio value=color checked>color
-			<input name=palette type=radio value=gray>gray
-		</div>
-		<button id=submit name=submit type=button>Render</button>
-		<button id=random type=button>Pick a random <i>c</i></button>
-	</form>
-	<script>
-		var vars = {
-			"a": -20, "b": 1, "c": -20, "d": 11,
-			"e": -20, "f": 5, "g": -20, "h": 15,
-			"i": -20, "j": 9, "k": -20, "l": 19,
-			//"re": Math.random()*2-1,
-			//"im": Math.random()*2-1,
-			"re": 0.285,
-			"im": 0.01,
-			"scale": 0, "width": 512, "height": 512,
-			"iterations": 255
-		};
-
-		var fractal, palette, inputs;
-		var submit, random, randomColors;
-
-		function setVar(key, val) {
-			document.querySelector('[name=' + key + ']').value = vars[key] = val;
-		}
-
-		function radioValue(s) {
-			var inputs = document.getElementsByName(s);
-			for (var i = 0, input; input = inputs[i]; i++) {
-				if (input.checked) {
-					return input.value;
-				}
-			}
-		}
-
-		function stick(stickButtons) {
-			for (var i = 0, input; input = inputs[i]; i++) {
-				input.setAttribute('disabled');
-			}
-			if (stickButtons) {
-				submit.setAttribute('disabled');
-				submit.innerText = "Rendering...";
-				random.setAttribute('disabled');
-			}
-		}
-
-		function unstick() {
-			for (var i = 0, input; input = inputs[i]; i++) {
-				input.removeAttribute('disabled');
-			}
-			submit.removeAttribute('disabled');
-			submit.innerText = "Render";
-			random.removeAttribute("disabled");
-		}
-
-		function updatePalette() {
-			var q = [];
-			"abcdefghijkl".split("").forEach(function(key) {
-				q.push(key + "=" + vars[key]);
-			})
-			var args = q.join("&");
-
-			stick(false);
-			palette.addEventListener("load", function() {
-				unstick();
-				palette.removeEventListener("load");
-			});
-			palette.setAttribute("src", "/palette.png?" + args);
-		}
-
-		function updateFractal(e) {
-			var q = [];
-			for (var key in vars) {
-				q.push(key + "=" + vars[key]);
-			}
-			q.push('palette=' + radioValue('palette'));
-			q.push('coloring=' + radioValue('coloring'));
-			var args = q.join("&");
-
-			stick(true);
-			var se;
-			if (e != null && e.target.selectionEnd) {
-				se = e.target.selectionEnd;
-			}
-
-			fractal.addEventListener("load", function() {
-				unstick();
-				if (e != null && e.target.setSelectionRange) {
-					e.target.focus();
-					e.target.setSelectionRange(se, se);
-				}
-				fractal.removeEventListener("load");
-			});
-			fractal.setAttribute("src", "/julia.png?" + args);
-		}
-
-		window.addEventListener("DOMContentLoaded", function() {
-			for (var key in vars) {
-				document.querySelector("[name=" + key + "]").value = vars[key];
-			}
-
-			fractal = document.querySelector('#fractal');
-			palette = document.querySelector('#palette');
-			inputs = document.querySelectorAll('input');
-			submit = document.querySelector('#submit');
-			random = document.querySelector("#random");
-			randomColors = document.querySelector('#random-colors');
-
-			for (var i = 0, input; input = inputs[i]; i++) {
-				input.addEventListener("input", function(e) {
-					var name = e.target.getAttribute("name");
-					vars[name] = e.target.value;
-					// the colors all have 1 length names
-					if (name.length === 1) {
-						updatePalette();
-						if (radioValue("palette") === "gray") {
-							return;
-						}
-					}
-					// update immediately unless it's something potentially very expensive
-					if (name !== "width" && name !== "height" && name !== "iterations") {
-						updateFractal(e);
-					}
-				});
-			}
-
-			updateFractal();
-			updatePalette();
-			submit.addEventListener("click", updateFractal);
-			random.addEventListener("click", function() {
-				setVar('re', Math.random()*2 - 1);
-				setVar('im', Math.random()*2 - 1);
-				updateFractal();
-			});
-			randomColors.addEventListener('click', function() {
-				var b = Math.floor(Math.random()*15);
-				var f = Math.floor(Math.random()*15);
-				var j = Math.floor(Math.random()*15);
-				setVar('a', Math.floor(-Math.random()*10 - 15));
-				setVar('b', b);
-				setVar('c', Math.floor(-Math.random()*10 - 15));
-				setVar('d', b + Math.ceil(Math.random()*15));
-				setVar('e', Math.floor(-Math.random()*10 - 15));
-				setVar('f', f);
-				setVar('g', Math.floor(-Math.random()*10 - 15));
-				setVar('h', f + Math.ceil(Math.random()*15));
-				setVar('i', Math.floor(-Math.random()*10 - 15));
-				setVar('j', j);
-				setVar('k', Math.floor(-Math.random()*10 - 15));
-				setVar('l', j + Math.ceil(Math.random()*15));
-				updatePalette();
-				updateFractal();
-			});
-		});
-	</script>
-</body>`
