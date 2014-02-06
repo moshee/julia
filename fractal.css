@@ -1,0 +1,110 @@
+@charset "utf-8";
+
+* {
+	padding: 0;
+	margin: 0;
+	box-sizing: border-box;
+}
+body {
+	font-family: arno pro;
+}
+h3, h4 {
+	font-family: sans-serif;
+	clear: both;
+}
+h3 {
+	margin: 1em 0 0.5em 0;
+}
+h4 {
+	margin-bottom: 0.5em;
+}
+button {
+	padding: 4px 8px;
+	margin-left: 8px;
+	font-size: 14px;
+	-webkit-appearance: none;
+	font-family: sans-serif;
+	color: #444;
+	background: #eee;
+	font-weight: bolder;
+	border: none;
+	float: right;
+}
+button:hover {
+	background: #ddd;
+}
+button:active {
+	background: #ccc;
+}
+button:disabled, input:disabled {
+	opacity: 0.6;
+}
+button#submit {
+	background: #4a2;
+	color: #fff;
+	text-transform: uppercase;
+}
+input[type=number] {
+	width: 5em;
+	border: none;
+	border-bottom: 1px dashed #888;
+	font-size: 18px;
+	font-family: arno pro, serif;
+	background: transparent;
+	height: 24px;
+	line-height: 24px;
+}
+input[type=number]:focus {
+	outline: 0;
+	border-color: #444;
+	background: #fafafa;
+}
+input[type=checkbox] {
+	vertical-align: middle;
+}
+table {
+	width: 100%;
+}
+table td {
+	padding: 2px 4px;
+}
+table td label {
+	vertical-align: top;
+}
+#palette-editor input[type=number] {
+	width: 3em;
+}
+table tr td:nth-of-type(2n+1) {
+	text-align: right;
+}
+.radio {
+	display: inline-block;
+	vertical-align: top;
+	padding-right: 32px;
+}
+	img { display: block }
+form, #images {
+	display: inline-block;
+	vertical-align: top;
+	padding: 32px;
+}
+.eqn {
+	text-align: center;
+	font-size: 24px;
+	margin: 16px;
+}
+#parameter, #parameter input[type=number] {
+	font-size: 20px;
+}
+#parameter input[type=number] {
+	width: 7em;
+}
+.knobs {
+	padding: 8px;
+	margin: 8px 0;
+	border: 1px solid #eee;
+	border-radius: 2px;
+}
+.knobs ul {
+	list-style-type: none;
+}
