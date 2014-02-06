@@ -6,23 +6,46 @@ import (
 	"math/cmplx"
 )
 
-func f(z, c complex128) complex128 {
-	return z*z + c
-	//return cmplx.Sinh(z*z) + cmplx.Exp(z) + c
-	//return (z*z-z)/(2*cmplx.Log(z)) + c
-	//return z*z*z + c
-	//return 1/(z*z) + c
-	//z = complex(math.Abs(real(z)), math.Abs(imag(z)))
-	//return z*z + c
-}
-func fp(z, c complex128) complex128 {
-	return 2 * z
-	//return 2*z*cmplx.Cosh(z*z) + cmplx.Exp(z)
-	//return ((2*z-1)*(2*cmplx.Log(z)-1) - 2*z + 2) / cmplx.Pow(2*cmplx.Log(z), 2+0i)
-	//return 3 * z * z
-	//return 2 / (z * z * z)
-	//     (2          (     abs(  Re(z))+i     abs(  Im(z)))          (  Re(z)      abs(  Im(z)) Re'(z)+i Im(z)      abs(  Re(z)) Im'(z)))/(     abs(  Im(z))      abs(  Re(z)))
-	//return (2 * complex(math.Abs(real(z)), math.Abs(imag(z))) * complex(real(z)*math.Abs(imag(z)), imag(z)*math.Abs(real(z)))) / complex(math.Abs(imag(z))*math.Abs(real(z)), 0)
+var (
+	coloringFuncs = map[string]ColoringFunc{
+		"distance": distance,
+		"escape":   escapeTime,
+	}
+	paletteFuncs = map[string]PaletteFunc{
+		"color": palette,
+		"gray":  gray,
+	}
+	iterFuncs = map[string]IterFunc{
+		"quadratic": IterFunc{
+			f: func(z, c complex128) complex128 {
+				return z*z + c
+			},
+			fp: func(z, c complex128) complex128 {
+				return 2 * z
+			},
+		},
+		"sierpinski": IterFunc{
+			f: func(z, c complex128) complex128 {
+				return z*z + c/z
+			},
+			fp: func(z, c complex128) complex128 {
+				return 2*z + c/(z*z)
+			},
+		},
+		"quadratic-abs": IterFunc{
+			f: func(z, c complex128) complex128 {
+				z = complex(math.Abs(real(z)), math.Abs(imag(z)))
+				return z*z + c
+			},
+			fp: func(z, c complex128) complex128 {
+				return (2 * complex(math.Abs(real(z)), math.Abs(imag(z))) * complex(real(z)*math.Abs(imag(z)), imag(z)*math.Abs(real(z)))) / complex(math.Abs(imag(z))*math.Abs(real(z)), 0)
+			},
+		},
+	}
+)
+
+type IterFunc struct {
+	f, fp func(z, c complex128) complex128
 }
 
 type ColoringFunc func(o *Opts, z, c complex128) float64
@@ -33,8 +56,8 @@ func distance(o *Opts, z, c complex128) float64 {
 
 derivative:
 	for j := 0; j < o.maxIters; j++ {
-		zn = f(z, c)
-		zp *= fp(z, c)
+		zn = o.iterFunc.f(z, c)
+		zp *= o.iterFunc.fp(z, c)
 		z = zn
 		if cmplx.Abs(zp) > 1.0e60 {
 			break derivative
@@ -49,7 +72,7 @@ derivative:
 func escapeTime(o *Opts, z, c complex128) float64 {
 	i := 0
 	for i < o.maxIters {
-		z = f(z, c)
+		z = o.iterFunc.f(z, c)
 		if escape(z) {
 			break
 		}

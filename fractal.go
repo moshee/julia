@@ -19,6 +19,7 @@ type Opts struct {
 	width, height int
 	coloringFunc  ColoringFunc
 	paletteFunc   PaletteFunc
+	iterFunc      IterFunc
 	args          map[rune]float64
 	maxIters      int
 	rePos, imPos  float64
@@ -63,27 +64,16 @@ func makeFractal(f Fractal, r *http.Request) image.Image {
 
 	distMax := (xmax * 2) / float64(width)
 
-	coloringFunc := distance
-	switch r.FormValue("coloring") {
-	case "distance":
-		coloringFunc = distance
-	case "escape":
-		coloringFunc = escapeTime
-	}
-
-	paletteFunc := gray
-	switch r.FormValue("palette") {
-	case "gray":
-		paletteFunc = gray
-	case "color":
-		paletteFunc = palette
-	}
+	coloringFunc := coloringFuncs[r.FormValue("coloring")]
+	paletteFunc := paletteFuncs[r.FormValue("palette")]
+	iterFunc := iterFuncs[r.FormValue("func")]
 
 	o := &Opts{
 		xmax, ymax, distMax,
 		width, height,
 		coloringFunc,
 		paletteFunc,
+		iterFunc,
 		args,
 		maxIters,
 		rePos, imPos,

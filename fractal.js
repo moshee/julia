@@ -33,27 +33,35 @@ function radioValue(s) {
 	}
 }
 
-function stick(stickButtons) {
+function stick() {
 	stuck = true;
 	for (var i = 0, input; input = inputs[i]; i++) {
 		input.disabled = true;
 	}
-	if (stickButtons) {
-		submit.disabled = true;
-		submit.innerText = "Rendering...";
-		random.disabled = true;
+	for (var i = 0, button; button = document.querySelectorAll("button")[i]; i++) {
+		button.disabled = true;
+		if ('disabledValue' in button.dataset) {
+			var old = button.innerText;
+			button.innerText = button.dataset.disabledValue;
+			button.dataset.disabledValue = old;
+		}
 	}
 }
 
 function unstick() {
 	for (var i = 0, input; input = inputs[i]; i++) {
-		if (!input.dataset.leaveDisabled) {
-			input.disabled = false;
+		if (input.dataset.leaveDisabled) continue;
+		input.disabled = false;
+	}
+	for (var i = 0, button; button = document.querySelectorAll("button")[i]; i++) {
+		if (button.dataset.leaveDisabled) continue;
+		button.disabled = false;
+		if ('disabledValue' in button.dataset) {
+			var old = button.innerText;
+			button.innerText = button.dataset.disabledValue;
+			button.dataset.disabledValue = old;
 		}
 	}
-	submit.disabled = false;
-	submit.innerText = "Render";
-	random.disabled = false;
 	stuck = false;
 }
 
@@ -75,12 +83,20 @@ function updateFractal(e) {
 	for (var key in vars) {
 		q.push(key + "=" + vars[key]);
 	}
-	q.push('palette=' + radioValue('palette'));
-	q.push('coloring=' + radioValue('coloring'));
+	var radios = [];
+	for (var i = 0, radio; radio = document.querySelectorAll("input[type=radio]")[i]; i++) {
+		var name = radio.getAttribute("name");
+		if (radios.indexOf(name) == -1) {
+			radios.push(name);
+		}
+	}
+	q = q.concat(radios.map(function(name) {
+		return name + '=' + radioValue(name);
+	}));
 	q.push('center=' + center.checked);
 	var args = q.join("&");
 
-	stick(true);
+	stick();
 	var se;
 	try {
 		se = e.target.selectionEnd;
@@ -102,6 +118,20 @@ function updateFractal(e) {
 	var endpoint = "/" + type + "." + format;
 
 	fractal.setAttribute("src", endpoint + "?" + args);
+}
+
+function radioListener(sel, func, shouldUpdate) {
+	for (var i = 0, radio; radio = document.querySelectorAll(sel)[i]; i++) {
+		if (shouldUpdate) {
+			radio.addEventListener("change", function(e) {
+				func(e);
+				updateFractal(e);
+			});
+		} else {
+			radio.addEventListener("change", func);
+		}
+	}
+	func();
 }
 
 window.addEventListener("DOMContentLoaded", function() {
@@ -186,7 +216,7 @@ window.addEventListener("DOMContentLoaded", function() {
 	submit.addEventListener("click", updateFractal);
 	center.addEventListener("click", updateFractal);
 
-	var disableThings = function() {
+	radioListener("input[name=fractal-type]", function() {
 		var inputs = document.querySelectorAll("#parameter input, #parameter button");
 		if (radioValue("fractal-type") === "mandelbrot") {
 			for (var j = 0, input; input = inputs[j]; j++) {
@@ -199,14 +229,9 @@ window.addEventListener("DOMContentLoaded", function() {
 				delete input.dataset.leaveDisabled;
 			}
 		}
-	}
-	for (var i = 0, radio; radio = document.querySelectorAll("input[name=fractal-type]")[i]; i++) {
-		radio.addEventListener("click", function() {
-			disableThings();
-			updateFractal();
-		 });
-	}
-	disableThings();
+	}, true);
+
+	radioListener("input[name=func]", function() { }, true);
 
 	var rePos = $("#rePos");
 	var imPos = $("#imPos");

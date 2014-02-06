@@ -20,7 +20,20 @@
     </div>
     <div class="radio knobs">
       <h4>Iterated function</h4>
-      <p class=eqn>ƒ<sub><i>c</i></sub>(<i>z</i>) = <i>z</i><sup>2</sup> + <i>c</i></p>
+      <ul>
+        <li>
+          <input type="radio" name="func" id="quadratic-func" value="quadratic" checked>
+          <label title="The complex quadratic" for="quadratic-func"><i>z</i> &#x21a6; <i>z</i><sup>2</sup> + <i>c</i></label>
+        </li>
+        <li>
+          <input type="radio" name="func" id="sierpinski-func" value="sierpinski">
+          <label title="A complex cubic with Sierpinsky gasket" for="sierpinski-func"><i>z</i> &#x21a6; <i>z</i><sup>2</sup> + <sup><i>c</i></sup>&#x2044;<sub><i>z</i></sub></label>
+        </li>
+        <li>
+          <input type="radio" name="func" id="quadratic-abs-func" value="quadratic-abs">
+          <label title="Burning ship fractal (Mandelbrot mode)" for="quadratic-abs-func"><i>z</i> &#x21a6; (|&#x211c;{<i>z</i>}| + <i>i</i>|&#x2111;{<i>z</i>}|)<sup>2</sup> + <i>c</i></label>
+        </li>
+      </ul>
     </div>
 		<h3>Function parameters</h3>
 		<div id=parameter class="knobs">
@@ -128,7 +141,7 @@
 					<td><input name=l type=number step=1></td>
 			</tr>
 		</table>
-		<button id=submit name=submit type=button>Render</button>
+		<button id=submit name=submit type=button data-disabled-value="Rendering...">Render</button>
     <button type=button id=random-colors>Random colors</button>
 	</form>
 	<div id=images>
